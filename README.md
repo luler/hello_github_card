@@ -2,6 +2,8 @@
 
 一个基于 FastAPI 和 Pillow 的 GitHub 仓库卡片生成工具，支持 Web 界面和 API 调用。
 
+> 临时在线试用地址：https://cas.luler.top/?search=68de28ca84a3a
+
 ## ✨ 功能特性
 
 - 🎨 生成精美的 GitHub 仓库信息卡片
