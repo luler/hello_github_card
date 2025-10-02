@@ -551,9 +551,9 @@ class GitHubRepoCard:
         :param max_width: 最大宽度
         :return: 下一行的 y 坐标
         """
-        # 使用更大的字体
+        # 使用相同大小的字体
         owner_font = self.get_font(48, bold=False)
-        repo_font = self.get_font(52, bold=True)  # 仓库名字体更大且加粗
+        repo_font = self.get_font(48, bold=True)  # 仓库名加粗
         slash_font = self.get_font(48, bold=False)
         emoji_font = self.get_emoji_font(48)
 
@@ -585,10 +585,9 @@ class GitHubRepoCard:
             self.draw_text_with_emoji(draw, (current_x, y), slash_text, slash_font, slash_color)
             current_x += slash_width
 
-            # 绘制仓库名（黑色，加粗）- 向上调整以对齐基线
-            repo_y_offset = -8  # 向上调整8像素
+            # 绘制仓库名（黑色，加粗）
             for offset in [(0, 0), (1, 0), (0, 1), (1, 1)]:
-                self.draw_text_with_emoji(draw, (current_x + offset[0], y + repo_y_offset + offset[1]),
+                self.draw_text_with_emoji(draw, (current_x + offset[0], y + offset[1]),
                                           repo_text, repo_font, repo_color)
 
             return y + 55  # 返回下一行的Y坐标
@@ -604,17 +603,16 @@ class GitHubRepoCard:
             next_y = y + 55
 
             # 如果repo名称太长，截断
-            repo_y_offset = -2  # 向上调整2像素以对齐
             if repo_width > max_width:
                 truncated_repo = self.truncate_text_smart(repo_text, repo_font, max_width, draw)
                 # 绘制截断的仓库名（黑色，加粗）
                 for offset in [(0, 0), (1, 0), (0, 1), (1, 1)]:
-                    self.draw_text_with_emoji(draw, (x + offset[0], next_y + repo_y_offset + offset[1]),
+                    self.draw_text_with_emoji(draw, (x + offset[0], next_y + offset[1]),
                                               truncated_repo, repo_font, repo_color)
             else:
                 # 绘制完整仓库名（黑色，加粗）
                 for offset in [(0, 0), (1, 0), (0, 1), (1, 1)]:
-                    self.draw_text_with_emoji(draw, (x + offset[0], next_y + repo_y_offset + offset[1]),
+                    self.draw_text_with_emoji(draw, (x + offset[0], next_y + offset[1]),
                                               repo_text, repo_font, repo_color)
 
             return next_y + 55  # 返回下一行的Y坐标
