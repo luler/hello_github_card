@@ -1,6 +1,7 @@
 import io
 import math
 import os
+import platform
 import re
 
 import requests
@@ -618,6 +619,9 @@ class GitHubRepoCard:
 
             return next_y + 55  # 返回下一行的Y坐标
 
+    def is_windows(self):
+        return platform.system() == 'Windows'
+
     def create_card(self, output_path="github_card.png"):
         """
         创建 GitHub 仓库卡片
@@ -719,7 +723,7 @@ class GitHubRepoCard:
 
         # 计算图标应该放置的Y位置，使其与数字垂直居中
         # 图标大小是 20，文本高度约 26，所以图标应该向下偏移 (26-20)/2 = 3
-        icon_y = number_y + 8
+        icon_y = number_y + (8 if self.is_windows() else 10)
 
         for i, (count, label, icon_type) in enumerate(stats_data):
             x = CONTENT_LEFT + int(i * section_width)
