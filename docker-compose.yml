@@ -1,9 +1,6 @@
 services:
   github-card-generator:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: github-card-generator:latest
+    image: ghcr.io/luler/hello_github_card:latest
     restart: unless-stopped
     ports:
       - "8000:8000"

@@ -43,7 +43,7 @@ python api.py
 
 ```json
 {
-  "repo_url": "https://github.com/owner/repo"
+  "repo_url": "https://github.com/luler/hello_github_card"
 }
 ```
 
@@ -53,6 +53,8 @@ python api.py
 
 ## 🎨 卡片样式
 
+![](example.png)
+
 - **尺寸**: 900x450 像素
 - **背景**: 浅灰色 (#f6f8fa)
 - **头像**: 右上角圆形头像
@@ -60,22 +62,6 @@ python api.py
 - **描述**: 最多 3 行，自动换行，支持 Emoji
 - **统计**: Contributors、Issues、Forks、Stars
 - **底部**: 彩色装饰条
-
-## 🐛 常见问题
-
-### Docker 中 Emoji 不显示？
-
-项目已自动处理 NotoColorEmoji 字体加载和缩放，重新构建镜像即可：
-
-```bash
-docker-compose down
-docker-compose build --no-cache
-docker-compose up -d
-```
-
-### 图标和数字对齐问题？
-
-已修复垂直对齐问题，确保使用最新代码。
 
 ## 🛠️ 技术栈
 
