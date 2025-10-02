@@ -1,0 +1,7 @@
+# GitHub 仓库卡片生成器 - 依赖包
+
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+pydantic==2.10.0
+requests==2.32.3
+Pillow==11.0.0

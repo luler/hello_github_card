@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GitHub 仓库卡片生成器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            padding: 20px 0;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .header p {
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #555;
+        }
+
+        .input-wrapper {
+            display: flex;
+            gap: 10px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 14px 18px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s;
+            outline: none;
+        }
+
+        input[type="text"]:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        button {
+            padding: 14px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .examples {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: #888;
+        }
+
+        .examples a {
+            color: #667eea;
+            text-decoration: none;
+            margin-right: 15px;
+        }
+
+        .examples a:hover {
+            text-decoration: underline;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 30px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .error {
+            display: none;
+            background: #fee;
+            border: 1px solid #fcc;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            color: #c33;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        .success {
+            display: none;
+            background: #efe;
+            border: 1px solid #cfc;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            color: #363;
+        }
+
+        .success.show {
+            display: block;
+        }
+
+        .result {
+            display: none;
+            margin-top: 30px;
+        }
+
+        .result.show {
+            display: block;
+        }
+
+        .result h2 {
+            margin-bottom: 20px;
+            color: #333;
+            font-size: 1.5rem;
+        }
+
+        .image-container {
+            position: relative;
+            background: #f6f8fa;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .image-container img {
+            width: 100%;
+            height: auto;
+            display: block;
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+
+        .image-container img:hover {
+            transform: scale(1.02);
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn-download,
+        .btn-new {
+            flex: 1;
+            min-width: 140px;
+            padding: 12px 24px;
+            text-align: center;
+            text-decoration: none;
+            border-radius: 10px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .btn-download {
+            background: #24292e;
+            color: white;
+        }
+
+        .btn-download:hover {
+            background: #1a1e22;
+            transform: translateY(-2px);
+        }
+
+        .btn-new {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-new:hover {
+            background: #e0e0e0;
+            transform: translateY(-2px);
+        }
+
+        .repo-info {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .repo-info h3 {
+            margin-bottom: 15px;
+            color: #333;
+            font-size: 1.2rem;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .stat {
+            text-align: center;
+            padding: 12px;
+            background: white;
+            border-radius: 8px;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        /* 模态框 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal img {
+            max-width: 100%;
+            max-height: 90vh;
+            border-radius: 10px;
+            box-shadow: 0 10px 50px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: white;
+            color: #333;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            font-size: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* 移动端优化 */
+        @media (max-width: 768px) {
+            body {
+                padding: 15px;
+            }
+
+            .header h1 {
+                font-size: 1.5rem;
+            }
+
+            .header p {
+                font-size: 0.9rem;
+            }
+
+            .card {
+                padding: 20px;
+            }
+
+            .input-wrapper {
+                flex-direction: column;
+            }
+
+            button {
+                width: 100%;
+            }
+
+            .stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .examples {
+                display: flex;
+                flex-direction: column;
+                gap: 5px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 1.3rem;
+            }
+
+            .actions {
+                flex-direction: column;
+            }
+
+            .btn-download,
+            .btn-new {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>🎨 GitHub 仓库卡片生成器</h1>
+        <p>输入 GitHub 仓库地址，一键生成精美卡片</p>
+    </div>
+
+    <div class="card">
+        <div class="error" id="error"></div>
+        <div class="success" id="success"></div>
+
+        <div class="input-group">
+            <label for="repoUrl">GitHub 仓库地址</label>
+            <div class="input-wrapper">
+                <input
+                        type="text"
+                        id="repoUrl"
+                        placeholder="https://github.com/owner/repo"
+                        autocomplete="off"
+                >
+                <button id="generateBtn" onclick="generateCard()">生成卡片</button>
+            </div>
+            <div class="examples">
+                <span>示例：</span>
+                <a href="#" onclick="fillExample('https://github.com/python/cpython'); return false;">python/cpython</a>
+                <a href="#"
+                   onclick="fillExample('https://github.com/microsoft/vscode'); return false;">microsoft/vscode</a>
+                <a href="#" onclick="fillExample('https://github.com/facebook/react'); return false;">facebook/react</a>
+            </div>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>正在生成卡片，请稍候...</p>
+        </div>
+    </div>
+
+    <div class="result" id="result">
+        <div class="card">
+            <h2>✨ 生成成功</h2>
+            <div class="image-container">
+                <img id="cardImage" src="" alt="GitHub Card" onclick="openModal()">
+            </div>
+            <div class="actions">
+                <a id="downloadLink" class="btn-download" download>📥 下载图片</a>
+                <a href="#" class="btn-new" onclick="reset(); return false;">🔄 生成新卡片</a>
+            </div>
+
+            <div class="repo-info" id="repoInfo" style="display: none;">
+                <h3>📊 仓库信息</h3>
+                <p id="repoDesc"></p>
+                <div class="stats">
+                    <div class="stat">
+                        <div class="stat-value" id="statStars">-</div>
+                        <div class="stat-label">Stars</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value" id="statForks">-</div>
+                        <div class="stat-label">Forks</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value" id="statIssues">-</div>
+                        <div class="stat-label">Issues+PRs</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value" id="statContributors">-</div>
+                        <div class="stat-label">Contributors</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 图片放大模态框 -->
+<div class="modal" id="modal" onclick="closeModal()">
+    <button class="modal-close" onclick="closeModal(); event.stopPropagation();">×</button>
+    <img id="modalImage" src="" alt="GitHub Card">
+</div>
+
+<script>
+    // 填充示例
+    function fillExample(url) {
+        document.getElementById('repoUrl').value = url;
+        document.getElementById('repoUrl').focus();
+    }
+
+    // 显示错误
+    function showError(message) {
+        const errorEl = document.getElementById('error');
+        errorEl.textContent = '❌ ' + message;
+        errorEl.classList.add('show');
+        setTimeout(() => errorEl.classList.remove('show'), 5000);
+    }
+
+    // 显示成功
+    function showSuccess(message) {
+        const successEl = document.getElementById('success');
+        successEl.textContent = '✅ ' + message;
+        successEl.classList.add('show');
+        setTimeout(() => successEl.classList.remove('show'), 3000);
+    }
+
+    // 格式化数字
+    function formatNumber(num) {
+        if (num >= 1000) {
+            return (num / 1000).toFixed(1) + 'k';
+        }
+        return num.toString();
+    }
+
+    // 生成卡片
+    async function generateCard() {
+        const repoUrl = document.getElementById('repoUrl').value.trim();
+
+        if (!repoUrl) {
+            showError('请输入 GitHub 仓库地址');
+            return;
+        }
+
+        // 显示加载状态
+        document.getElementById('loading').classList.add('show');
+        document.getElementById('result').classList.remove('show');
+        document.getElementById('error').classList.remove('show');
+        document.getElementById('generateBtn').disabled = true;
+
+        try {
+            const response = await fetch('/api/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({repo_url: repoUrl})
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.detail || '生成失败');
+            }
+
+            // 显示结果
+            const imageUrl = data.data.image_url + '?t=' + Date.now(); // 防止缓存
+            document.getElementById('cardImage').src = imageUrl;
+            document.getElementById('modalImage').src = imageUrl;
+            document.getElementById('downloadLink').href = imageUrl;
+            document.getElementById('downloadLink').download = data.data.filename;
+
+            // 显示仓库信息
+            const repoInfo = data.data.repo_info;
+            if (repoInfo) {
+                document.getElementById('repoDesc').textContent = repoInfo.description || '暂无描述';
+                document.getElementById('statStars').textContent = formatNumber(repoInfo.stars);
+                document.getElementById('statForks').textContent = formatNumber(repoInfo.forks);
+                document.getElementById('statIssues').textContent = formatNumber(repoInfo.issues);
+                document.getElementById('statContributors').textContent = formatNumber(repoInfo.contributors);
+                document.getElementById('repoInfo').style.display = 'block';
+            }
+
+            document.getElementById('result').classList.add('show');
+            showSuccess(data.message);
+
+        } catch (error) {
+            showError(error.message);
+        } finally {
+            document.getElementById('loading').classList.remove('show');
+            document.getElementById('generateBtn').disabled = false;
+        }
+    }
+
+    // 重置页面
+    function reset() {
+        document.getElementById('repoUrl').value = '';
+        document.getElementById('result').classList.remove('show');
+        document.getElementById('repoUrl').focus();
+    }
+
+    // 打开模态框
+    function openModal() {
+        document.getElementById('modal').classList.add('show');
+        document.body.style.overflow = 'hidden';
+    }
+
+    // 关闭模态框
+    function closeModal() {
+        document.getElementById('modal').classList.remove('show');
+        document.body.style.overflow = 'auto';
+    }
+
+    // 支持 Enter 键提交
+    document.getElementById('repoUrl').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') {
+            generateCard();
+        }
+    });
+
+    // ESC 键关闭模态框
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            closeModal();
+        }
+    });
+
+    // 页面加载完成后聚焦输入框
+    window.addEventListener('load', function () {
+        document.getElementById('repoUrl').focus();
+    });
+</script>
+</body>
+</html>

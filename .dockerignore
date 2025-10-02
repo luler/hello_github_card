@@ -1,0 +1,63 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Documentation
+README.md
+USAGE.md
+*.md
+
+# Test files
+test_*.py
+test_*.png
+
+# Images (will be mounted as volume)
+images/*.png
+images/*.jpg
+images/*.jpeg
+
+# Logs
+*.log
+
+# System files
+.DS_Store
+Thumbs.db
+*.bak
+
+# Windows scripts
+*.bat
+
+# Temporary files
+*.tmp
+*.temp
+.claude

@@ -1,0 +1,12 @@
+services:
+  github-card-generator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: github-card-generator:latest
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      # 持久化存储生成的图片
+      - ./images:/app/images
