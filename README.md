@@ -40,10 +40,36 @@ python api.py
 ## 🔌 API 使用
 
 **POST** `/api/generate`
-
+- 请求：
 ```json
 {
   "repo_url": "https://github.com/luler/hello_github_card"
+}
+```
+- 正常返回示例：
+```json
+{
+  "success": true,
+  "message": "卡片生成成功",
+  "data": {
+    "owner": "luler",
+    "repo_name": "hello_github_card",
+    "image_url": "/images/luler_hello_github_card_20251002_073207.png",
+    "filename": "luler_hello_github_card_20251002_073207.png",
+    "repo_info": {
+      "description": "一个基于 FastAPI 和 Pillow 的 GitHub 仓库卡片生成工具，支持 Web 界面和 API 调用。",
+      "stars": 0,
+      "forks": 0,
+      "issues": 0,
+      "contributors": 1
+    }
+  }
+}
+```
+- 错误返回示例：
+```json
+{
+    "detail": "服务器错误: 404: 无法获取仓库信息，请检查仓库 URL 是否正确"
 }
 ```
 
