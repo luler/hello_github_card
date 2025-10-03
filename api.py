@@ -5,7 +5,6 @@ GitHub 仓库卡片生成 API 服务
 """
 
 import re
-from datetime import datetime
 from pathlib import Path
 
 import uvicorn
@@ -98,46 +97,24 @@ def parse_repo_url(repo_url: str) -> tuple:
         raise ValueError("无效的 GitHub 仓库 URL 格式")
 
 
-def get_image_filename(owner: str, repo_name: str) -> str:
+def get_image_path(owner: str, repo_name: str) -> Path:
     """
-    生成图片文件名
+    生成图片存储路径
 
     :param owner: 仓库所有者
     :param repo_name: 仓库名称
-    :return: 文件名
+    :return: 图片路径（Path对象）
     """
-    # 生成基础文件名: owner_repo_timestamp.png
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    base_name = f"{owner}_{repo_name}_{timestamp}"
+    # 清理目录名和文件名
+    clean_owner = sanitize_filename(owner)
+    clean_repo = sanitize_filename(repo_name)
 
-    # 清理文件名
-    clean_name = sanitize_filename(base_name)
+    # 创建目录结构: images/{owner}/
+    owner_dir = IMAGES_DIR / clean_owner
+    owner_dir.mkdir(parents=True, exist_ok=True)
 
-    return f"{clean_name}.png"
-
-
-def cleanup_old_images(owner: str, repo_name: str):
-    """
-    清理同一仓库的旧图片，只保留最新的一张
-
-    :param owner: 仓库所有者
-    :param repo_name: 仓库名称
-    """
-    # 查找所有该仓库的图片
-    pattern = f"{sanitize_filename(owner)}_{sanitize_filename(repo_name)}_*.png"
-
-    existing_files = list(IMAGES_DIR.glob(pattern))
-
-    # 按修改时间排序
-    existing_files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
-
-    # 删除除了最新的之外的所有文件
-    for old_file in existing_files[1:]:
-        try:
-            old_file.unlink()
-            print(f"已删除旧图片: {old_file.name}")
-        except Exception as e:
-            print(f"删除旧图片失败 {old_file.name}: {e}")
+    # 返回完整路径: images/{owner}/{repo_name}.png
+    return owner_dir / f"{clean_repo}.png"
 
 
 @app.get("/")
@@ -179,12 +156,11 @@ async def generate_card(request: RepoRequest):
                 detail="无法获取仓库信息，请检查仓库 URL 是否正确"
             )
 
-        # 生成文件名
-        filename = get_image_filename(owner, repo_name)
-        output_path = IMAGES_DIR / filename
+        # 生成文件路径
+        image_path = get_image_path(owner, repo_name)
 
         # 生成卡片
-        result = generator.create_card(str(output_path))
+        result = generator.create_card(str(image_path))
 
         if not result:
             raise HTTPException(
@@ -192,8 +168,9 @@ async def generate_card(request: RepoRequest):
                 detail="生成卡片失败"
             )
 
-        # 清理旧图片
-        cleanup_old_images(owner, repo_name)
+        # 计算相对路径用于返回URL
+        relative_path = image_path.relative_to(IMAGES_DIR)
+        image_url = f"/images/{relative_path.as_posix()}"
 
         # 返回结果
         return JSONResponse({
@@ -202,8 +179,8 @@ async def generate_card(request: RepoRequest):
             "data": {
                 "owner": owner,
                 "repo_name": repo_name,
-                "image_url": f"/images/{filename}",
-                "filename": filename,
+                "image_url": image_url,
+                "filename": image_path.name,
                 "repo_info": {
                     "description": generator.api_data.get("description", ""),
                     "stars": generator.api_data.get("stargazers_count", 0),
@@ -228,8 +205,7 @@ async def generate_card(request: RepoRequest):
 async def health_check():
     """健康检查接口"""
     return {
-        "status": "healthy",
-        "timestamp": datetime.now().isoformat()
+        "status": "healthy"
     }
 
 
