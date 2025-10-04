@@ -4,11 +4,13 @@ GitHub 仓库卡片生成 API 服务
 提供 Web 接口和静态页面服务
 """
 
+import asyncio
 import re
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -33,6 +35,9 @@ STATIC_DIR.mkdir(exist_ok=True)
 # 挂载静态文件目录
 app.mount("/images", StaticFiles(directory=str(IMAGES_DIR)), name="images")
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+# 异步任务队列
+regeneration_queue = asyncio.Queue()
 
 
 class RepoRequest(BaseModel):
@@ -117,6 +122,59 @@ def get_image_path(owner: str, repo_name: str) -> Path:
     return owner_dir / f"{clean_repo}.png"
 
 
+def is_card_outdated(image_path: Path, max_age_days: int = 1) -> bool:
+    """
+    检查卡片是否过期（超过指定天数）
+
+    :param image_path: 图片路径
+    :param max_age_days: 最大有效天数，默认1天
+    :return: 是否过期
+    """
+    if not image_path.exists():
+        return True
+
+    # 获取文件修改时间
+    mtime = datetime.fromtimestamp(image_path.stat().st_mtime)
+    age = datetime.now() - mtime
+
+    return age > timedelta(days=max_age_days)
+
+
+async def regenerate_card_worker():
+    """
+    后台任务：处理卡片重新生成队列
+    """
+    while True:
+        try:
+            # 从队列获取任务
+            owner, repo_name, image_path = await regeneration_queue.get()
+
+            print(f"\n[后台任务] 重新生成卡片: {owner}/{repo_name}")
+
+            # 生成卡片
+            normalized_url = f"https://github.com/{owner}/{repo_name}"
+            generator = GitHubRepoCard(normalized_url)
+
+            if generator.fetch_repo_data():
+                generator.create_card(str(image_path))
+                print(f"[后台任务] 卡片重新生成完成: {owner}/{repo_name}")
+            else:
+                print(f"[后台任务] 获取仓库信息失败: {owner}/{repo_name}")
+
+            # 标记任务完成
+            regeneration_queue.task_done()
+
+        except Exception as e:
+            print(f"[后台任务] 重新生成卡片失败: {e}")
+            regeneration_queue.task_done()
+
+
+@app.on_event("startup")
+async def startup_event():
+    """应用启动时创建后台任务"""
+    asyncio.create_task(regenerate_card_worker())
+
+
 @app.get("/")
 async def read_root():
     """返回首页 HTML"""
@@ -125,6 +183,101 @@ async def read_root():
         return FileResponse(html_file)
     else:
         return {"message": "GitHub Card Generator API", "docs": "/docs"}
+
+
+@app.get("/github/{owner}/{repo_name}")
+async def direct_card(owner: str, repo_name: str, request: Request):
+    """
+    通过路径参数获取 GitHub 仓库卡片
+    - 如果卡片不存在，自动生成
+    - 如果卡片存在但超过1天，放入异步队列重新生成，同时返回旧卡片
+    - 如果卡片存在且未过期，直接返回
+    - 支持 ETag 验证，匹配时返回 304 Not Modified
+
+    :param owner: 仓库所有者
+    :param repo_name: 仓库名称
+    :param request: 请求对象
+    :return: 卡片图片文件或 304 响应
+    """
+    try:
+        # 获取图片路径
+        image_path = get_image_path(owner, repo_name)
+
+        # 检查卡片是否存在
+        if not image_path.exists():
+            # 卡片不存在，立即生成
+            print(f"\n[直接生成] 卡片不存在，立即生成: {owner}/{repo_name}")
+
+            normalized_url = f"https://github.com/{owner}/{repo_name}"
+            generator = GitHubRepoCard(normalized_url)
+
+            if not generator.fetch_repo_data():
+                raise HTTPException(
+                    status_code=404,
+                    detail="无法获取仓库信息，请检查仓库名称是否正确"
+                )
+
+            result = generator.create_card(str(image_path))
+            if not result:
+                raise HTTPException(
+                    status_code=500,
+                    detail="生成卡片失败"
+                )
+
+            print(f"[直接生成] 卡片生成成功: {owner}/{repo_name}")
+
+        # 检查卡片是否过期
+        elif is_card_outdated(image_path, max_age_days=1):
+            # 卡片过期，放入队列异步重新生成
+            print(f"\n[异步更新] 卡片已过期，加入重新生成队列: {owner}/{repo_name}")
+            await regeneration_queue.put((owner, repo_name, image_path))
+            print(f"[异步更新] 先返回旧卡片: {owner}/{repo_name}")
+
+        else:
+            # 卡片未过期，直接返回
+            print(f"\n[缓存命中] 卡片未过期，直接返回: {owner}/{repo_name}")
+
+        # 生成服务端 ETag
+        server_etag = f'"{owner}/{repo_name}-{int(image_path.stat().st_mtime)}"'
+
+        # 获取客户端 ETag
+        client_etag = request.headers.get("if-none-match")
+
+        # ETag 验证：如果匹配则返回 304 Not Modified
+        if client_etag == server_etag:
+            print(f"[304] ETag 匹配，返回 Not Modified: {owner}/{repo_name}")
+            return Response(
+                status_code=304,
+                headers={
+                    "Cache-Control": "public, max-age=86400, must-revalidate",
+                    "ETag": server_etag,
+                    "Last-Modified": datetime.fromtimestamp(
+                        image_path.stat().st_mtime
+                    ).strftime("%a, %d %b %Y %H:%M:%S GMT")
+                }
+            )
+
+        # 返回图片文件，设置缓存头
+        return FileResponse(
+            image_path,
+            media_type="image/png",
+            headers={
+                "Cache-Control": "public, max-age=86400, must-revalidate",  # 缓存1天，但需验证
+                "ETag": server_etag,  # 使用文件修改时间作为ETag
+                "Last-Modified": datetime.fromtimestamp(
+                    image_path.stat().st_mtime
+                ).strftime("%a, %d %b %Y %H:%M:%S GMT")
+            }
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[错误] 处理卡片请求失败: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"服务器错误: {str(e)}"
+        )
 
 
 @app.post("/api/generate")
